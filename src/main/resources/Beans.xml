@@ -8,52 +8,25 @@
     	<property name="ignoreUnresolvablePlaceholders" value="true"/>
     </bean>
     	
-   	<bean 
-   		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-		<property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE"/>
-   		<property name="ignoreResourceNotFound" value="true" />
-   		<property name="locations">
-   			<list>
- 				<value>classpath:uriresolver.properties</value>
-				<value>file:#{ systemProperties['user.home']}/.cts2_uri/uriresolver.properties</value>     
-			</list>
-		</property>		
-   </bean>
-   
-   
-   <bean id="logDetails" 
+   <bean id="logDetails"
       class="edu.mayo.cts2.uriresolver.logging.LogDetails">
-      <property name="level" value="${log.level}" />
+      <property name="level" value="0" />
       	<property name="fileLocations">
    			<list>
-   				<value>file:"${log.filelocation}"</value>
-				<value>file:#{ systemProperties['user.home']}/.cts2_uri/uriresolver.log</value>     
+   				<value>file:""</value>
+				<value>file:#{ systemProperties['user.home']}/.cts2_uri/uriresolver.log</value>
  				<value>classpath:uriresolver.log</value>
 			</list>
       	</property>
    </bean>
 
-  	<bean id="databaseSecurity"
-      class="edu.mayo.cts2.uriresolver.security.DatabaseSecurity">
- 		<property name="dbEditable" value="${db.editable}" />
-      	<property name="fileLocations">
-   			<list>
-				<value>file:#{ systemProperties['user.home']}/.cts2_uri/user.properties</value>     
- 				<value>classpath:user.properties</value>
-			</list>
-      	</property>
- 	</bean>
- 
-   <bean id="uriJDBCTemplate" 
+   <bean id="uriJDBCTemplate"
       class="edu.mayo.cts2.uriresolver.dao.UriDAOJdbc">
    </bean>
    
    <bean id="dataSource" 
-      class="org.springframework.jdbc.datasource.DriverManagerDataSource">
-      <property name="driverClassName" value="${db.driverClassName}" />
-      <property name="url" value="${db.url}" />
-      <property name="username" value="${db.username}" />
-      <property name="password" value="${db.password}" />
+      class="org.springframework.jndi.JndiObjectFactoryBean">
+	   <property name="jndiName" value="java:comp/env/jdbc/uriResolverDataSource" />
    </bean>
 
 

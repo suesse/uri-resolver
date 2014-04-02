@@ -8,20 +8,11 @@
 */
 package edu.mayo.cts2.uriresolver.security;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 
-import org.springframework.context.support.ClassPathXmlApplicationContext;
-import org.springframework.core.io.Resource;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -31,6 +22,10 @@ import org.springframework.stereotype.Service;
 
 import edu.mayo.cts2.uriresolver.logging.URILogger;
 
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+
 @Service("myUserDetailService")
 public class UserDetailsServiceImpl implements UserDetailsService {
 	private static URILogger logger = new URILogger(UserDetailsServiceImpl.class);
@@ -38,25 +33,21 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 	// just to emulate user data and credentials retrieval from a DB, or
 	// whatsoever authentication service
 	private static Map<String, UserDetails> userRepository = new HashMap<String, UserDetails>();
-	
+    private static Context context;
+
 	static {
-		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("Beans.xml");
-		DatabaseSecurity dbSecurity = (DatabaseSecurity) context.getBean("databaseSecurity");
-		
-		if(dbSecurity.getDbEditable().equals("TRUE")){
-			logger.info("Database IS enabled to edit");
-			List<String> fileLocations = dbSecurity.getFileLocations();
-			for(String location : fileLocations){
-				logger.info("USER FILE: " + location);
-				if(importUsers(context.getResource(location))){
-					break;
-				}
-			}
-		}
-		else{
-			logger.info("Database is not enabled to edit");
-		}
-		context.close();
+        try {
+            context = (Context) new InitialContext().lookup("java:/comp/env");
+            if (isDatabaseEditable()) {
+                logger.info("Database IS enabled to edit");
+                importUser();
+            }
+            else {
+                logger.info("Database is not enabled to edit");
+            }
+        } catch (NamingException ne) {
+            logger.warn("Unable to read admin context");
+        }
 	}
 
 	public UserDetails loadUserByUsername(String username)
@@ -70,44 +61,28 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		return matchingUser;
 	}
 
-	private static boolean importUsers(Resource resource) {
+	private static boolean importUser() throws NamingException {
 		boolean importedUsers = false;
-		URL userAccounts;
-		try {
-			userAccounts = resource.getURL();
-			File userList = new File(userAccounts.getFile());
-			if(userList.exists()){
-				try {
-					Scanner scanner = new Scanner(userList);
-					while(scanner.hasNext()){
-						String username = scanner.next().trim();
-						String password = scanner.next().trim();
-						logger.info("ACCOUNT: " + username + "\t" + password);
-						Set<GrantedAuthority> authList = new HashSet<GrantedAuthority>();
-						authList.add(new SimpleGrantedAuthority("ROLE_USER"));
-						UserDetails user = new UserDetailsImpl(username, password, authList);
-						userRepository.put(username, user);
-					}
-					importedUsers = true;
-					scanner.close();
-				} catch (FileNotFoundException e) {
-					logger.error("FAILED TO LOAD USER FILE: " + resource);
-				}
-				
-			}
-			else {
-				System.out.println("FILE DOES NOT EXIST: " + resource);
-			}
-		} catch (MalformedURLException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-			
-			
+
+        String creds = (String) context.lookup("uriResolverDatabaseCredentials");
+        if (creds != null) {
+            String[] arr = creds.split("\\s");
+            String username = arr[0].trim();
+            String password = arr[1].trim();
+
+            logger.info("ACCOUNT: " + username + "\t" + password);
+            Set<GrantedAuthority> authList = new HashSet<GrantedAuthority>();
+            authList.add(new SimpleGrantedAuthority("ROLE_USER"));
+            UserDetails user = new UserDetailsImpl(username, password, authList);
+            userRepository.put(username, user);
+            importedUsers = true;
+        }
+
 		return importedUsers;
 	}
+
+    private static boolean isDatabaseEditable() throws NamingException {
+        return (boolean) context.lookup("uriResolverDatabaseEditable");
+    }
 
 }
