@@ -36,7 +36,19 @@ public class ResolveURI {
 	private static final String IDENTIFIER = "identifier";
 	private static final String ID = "id";
 	private static final String VERSION = "version";
-	
+
+    @RequestMapping(method = RequestMethod.POST, value = "/ids")
+    public ModelAndView createResource(@RequestBody UriResults uriObj) {
+        logger.info("Creating new resource.");
+        uriDAO = DAOUtiltities.connectDB(uriDAO);
+        if(uriDAO != null){
+            uriDAO.saveIdentifiers(uriObj);
+            String versionIdentifier = uriDAO.getIdentifierByID(uriObj.getResourceType(), uriObj.getResourceName());
+            return new ModelAndView("redirect:/id/CODE_SYSTEM/" + versionIdentifier);
+        }
+        return null;
+    }
+
 	@RequestMapping(method=RequestMethod.PUT, value="/versions/{type}/{identifier}")
 	public ResponseEntity<String> saveVersionIdentifiers(@RequestBody UriResults uriResults, @PathVariable String type, @PathVariable String identifier){
 		logger.info("\n\nsaveVersionIdentifiers\n\n");
